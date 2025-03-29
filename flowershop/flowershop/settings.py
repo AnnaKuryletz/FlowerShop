@@ -14,6 +14,9 @@ from pathlib import Path
 import os
 
 
+DJANGO_SUPERUSER_USERNAME = "admin"
+DJANGO_SUPERUSER_EMAIL = "admin@example.com"
+DJANGO_SUPERUSER_PASSWORD = "password"
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_URL = "/static/"
