@@ -33,7 +33,26 @@ SECRET_KEY = "django-insecure-zxepi6kd31ez^jj-+gsdh-x7a31y02(t8%+kwls%aufn7wn^+e
 DEBUG = True
 
 ALLOWED_HOSTS = ["flowershop-production.up.railway.app", "127.0.0.1"]
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'debug.log',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
 
 
 # Application definition
