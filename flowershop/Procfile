@@ -2,3 +2,4 @@ worker: python manage.py start_bot
 release: python manage.py migrate
 release: python manage.py collectstatic --noinput
 release: python manage.py migrate && python manage.py create_admin
+web: python manage.py runserver 0.0.0.0:8080
