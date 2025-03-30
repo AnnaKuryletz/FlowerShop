@@ -13,6 +13,7 @@ RUN pip install -r requirements.txt
 
 # Создаем папку для статических файлов, если её нет
 RUN mkdir -p /app/staticfiles
+RUN apt-get update && apt-get install -y supervisor
 
 # Сборка статики
 RUN python manage.py collectstatic --noinput
@@ -20,6 +21,8 @@ RUN python manage.py collectstatic --noinput
 # Открываем порт
 EXPOSE 8080
 
-# Запускаем бота
-CMD ["sh", "-c", "gunicorn flowershop.wsgi:application --bind 0.0.0.0:$PORT & python manage.py start_bot"]
+# Копируем конфигурацию supervisord
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Запускаем supervisord, чтобы он управлял процессами
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
