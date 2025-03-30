@@ -27,7 +27,7 @@ SECRET_KEY = "django-insecure-zxepi6kd31ez^jj-+gsdh-x7a31y02(t8%+kwls%aufn7wn^+e
 DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
-CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1', 'https://flowershop-347a.onrender.com']
+CSRF_TRUSTED_ORIGINS = ['https://flowershop-347a.onrender.com']
  
 CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = False
