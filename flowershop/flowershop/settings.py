@@ -26,12 +26,13 @@ SECRET_KEY = "django-insecure-zxepi6kd31ez^jj-+gsdh-x7a31y02(t8%+kwls%aufn7wn^+e
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["flowershop-347a.onrender.com"]
 
-CSRF_TRUSTED_ORIGINS = ['https://flowershop-production.up.railway.app']
+CSRF_TRUSTED_ORIGINS = ["https://flowershop-347a.onrender.com"]
+
  
-CSRF_COOKIE_SECURE = False
-CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
 
 
 # Application definition
