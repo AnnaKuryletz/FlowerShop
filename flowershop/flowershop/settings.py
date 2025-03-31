@@ -84,15 +84,8 @@ WSGI_APPLICATION = "flowershop.wsgi.application"
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'railway',
-        'USER': 'postgres',
-        'PASSWORD': 'VWjrwUTLCYUXKmucuYbBtNvBVqcBjyOw',
-        'HOST': 'gondola.proxy.rlwy.net',
-        'PORT': '37612',
-        'OPTIONS': {
-            'sslmode': 'require',  # Включает SSL для безопасного соединения
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'data', 'db.sqlite3'),
     }
 }
 

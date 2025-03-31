@@ -14,7 +14,7 @@ from asgiref.sync import sync_to_async
 from shop.models import Bouquet, Customer, Order, Statistics, Consultation
 from telegram_bot.bot_tools import keyboards
 import asyncio
-
+import random
 
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -106,6 +106,7 @@ async def process_contact_info(message: types.Message, state: FSMContext):
     await message.answer(
         f"📝 Ваш запрос на консультацию успешно отправлен!\nИмя: {consultation.customer_name}\nТелефон: {consultation.phone}"
     )
+
     await state.clear()
 
 
@@ -139,6 +140,12 @@ async def handle_occasion(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+import random
+
+
+import random
+
+
 @router.callback_query(lambda c: c.data.startswith("price_"))
 async def handle_price_selection(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик для выбора цены"""
@@ -157,23 +164,25 @@ async def handle_price_selection(callback: types.CallbackQuery, state: FSMContex
         price_filter = {"price__lte": int(price_key)}
 
     # Фильтрация букетов
-    STANDARD_OCCASIONS = ["birthday", "wedding", "school", "no_reason"]
-
-    if user_occasion in STANDARD_OCCASIONS:
-        # Фильтруем букеты по стандартному поводу
+    if user_occasion in ["birthday", "wedding", "school", "no_reason"]:
+        # Стандартные поводы
         bouquets = await sync_to_async(list)(
             Bouquet.objects.filter(occasion=user_occasion, **price_filter)
         )
     elif user_occasion and user_occasion not in ["wedding", "school"]:
         # Если пользователь ввел свой повод, исключаем школьные и свадебные букеты
         bouquets = await sync_to_async(list)(
-            Bouquet.objects.filter(**price_filter).exclude(
-                occasion__in=["wedding", "school"]
+            Bouquet.objects.filter(
+                occasion__in=["birthday", "no_reason"], **price_filter
             )
         )
     else:
-        # Если повод не указан, выбираем все букеты без фильтрации
-        bouquets = await sync_to_async(list)(Bouquet.objects.filter(**price_filter))
+        # Если повод не стандартный, то выбираем случайный букет из "birthday" и "no_reason"
+        bouquets = await sync_to_async(list)(
+            Bouquet.objects.filter(
+                occasion__in=["birthday", "no_reason"], **price_filter
+            )
+        )
 
     if not bouquets:
         await callback.message.answer(
@@ -181,38 +190,41 @@ async def handle_price_selection(callback: types.CallbackQuery, state: FSMContex
         )
         return
 
-    # Отправка подходящих букетов
-    for bouquet in bouquets:
-        text = f"🌸 *{bouquet.name}*\n{bouquet.description}\n💰 Цена: {bouquet.price} руб.\n✨*{bouquet.essence_bouquet}*"
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="✅ Выбрать этот букет",
-                        callback_data=f"bouquet_{bouquet.id}",
-                    )
-                ]
+    # Выбираем случайный букет
+    bouquet = random.choice(bouquets)
+
+    text = f"🌸 *{bouquet.name}*\n{bouquet.description}\n💰 Цена: {bouquet.price} руб.\n✨*{bouquet.essence_bouquet}*"
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Выбрать этот букет",
+                    callback_data=f"bouquet_{bouquet.id}",
+                )
             ]
-        )
-        if bouquet.image:
-            image_path = bouquet.image.path
-            if os.path.exists(image_path):
-                img_input = FSInputFile(image_path)
-                await callback.message.answer_photo(
-                    img_input,
-                    caption=text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-            else:
-                await callback.message.answer(
-                    f"Изображение для букета {bouquet.name} не найдено!"
-                )
+        ]
+    )
+
+    if bouquet.image:
+        image_path = bouquet.image.path
+        if os.path.exists(image_path):
+            img_input = FSInputFile(image_path)
+            await callback.message.answer_photo(
+                img_input,
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=keyboard,
+            )
         else:
             await callback.message.answer(
-                text, parse_mode="Markdown", reply_markup=keyboard
+                f"Изображение для букета {bouquet.name} не найдено!"
             )
+    else:
+        await callback.message.answer(
+            text, parse_mode="Markdown", reply_markup=keyboard
+        )
 
+    # Информация о кнопке "Посмотреть всю коллекцию"
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -233,8 +245,22 @@ async def handle_price_selection(callback: types.CallbackQuery, state: FSMContex
 
 
 @router.callback_query(lambda c: c.data == "all_bouquet")
-async def show_all_bouquets(callback: types.CallbackQuery):
-    bouquets = await sync_to_async(list)(Bouquet.objects.all())
+async def show_all_bouquets(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    user_occasion = user_data.get("occasion")
+
+    # Фильтрация букетов по выбранному поводу
+    if user_occasion:
+        bouquets = await sync_to_async(list)(
+            Bouquet.objects.filter(occasion=user_occasion)
+        )
+    else:
+        bouquets = await sync_to_async(list)(Bouquet.objects.all())
+
+    if not bouquets:
+        await callback.message.answer("К сожалению, пока нет доступных букетов 😔")
+        return
+
     for bouquet in bouquets:
         text = (
             f"🌸 *{bouquet.name}*\n{bouquet.description}\n💰 Цена: {bouquet.price} руб."
@@ -412,20 +438,21 @@ async def process_delivery_time(message: types.Message, state: FSMContext):
     await message.answer("Спасибо! Теперь введите ваш номер телефона:")
     await state.set_state(OrderState.waiting_for_phone)
 
+
 async def send_order_notifications(user, bouquet, user_data, phone):
     """Отправка уведомлений курьеру и менеджеру"""
     courier_chat_id = os.getenv("COURIER_CHAT_ID")
     manager_chat_id = os.getenv("MANAGER_CHAT_ID")
     text = (
-            f"📦 Новый заказ!\n"
-            f"👤 Клиент: {user.name}\n"
-            f"💐 Букет: {bouquet.name}\n"
-            f"📦 Адрес: {user_data['address']}\n"
-            f"🕒 Время доставки: {user_data['delivery_time']}\n"
-            f"📱 Телефон: {phone}"
-        )
+        f"📦 Новый заказ!\n"
+        f"👤 Клиент: {user.name}\n"
+        f"💐 Букет: {bouquet.name}\n"
+        f"📦 Адрес: {user_data['address']}\n"
+        f"🕒 Время доставки: {user_data['delivery_time']}\n"
+        f"📱 Телефон: {phone}"
+    )
 
-        # Отправляем уведомления
+    # Отправляем уведомления
     await bot.send_message(chat_id=courier_chat_id, text=text)
     await bot.send_message(chat_id=manager_chat_id, text=text)
 
@@ -436,7 +463,9 @@ async def process_phone(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
 
     if "delivery_time" not in user_data or not user_data["delivery_time"]:
-        await message.answer("Ошибка: Время доставки не указано! Укажите время перед оформлением заказа.")
+        await message.answer(
+            "Ошибка: Время доставки не указано! Укажите время перед оформлением заказа."
+        )
         return
     user = await sync_to_async(Customer.objects.get)(id=user_data["user_id"])
     bouquet = await sync_to_async(Bouquet.objects.get)(id=user_data["bouquet_id"])
@@ -459,13 +488,21 @@ async def process_phone(message: types.Message, state: FSMContext):
         f"✅ Ваш заказ оформлен!\n💐 Букет: {bouquet.name}\n📦 Адрес: {user_data['address']}\n🕒 Время доставки: {user_data['delivery_time']}\n📱 Телефон: {message.text}"
     )
 
-    asyncio.create_task(send_order_notifications(user, bouquet, user_data, message.text))
+    asyncio.create_task(
+        send_order_notifications(user, bouquet, user_data, message.text)
+    )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Оформить повторный заказ", callback_data="repeat_order")]
+            [
+                InlineKeyboardButton(
+                    text="Оформить повторный заказ", callback_data="repeat_order"
+                )
+            ]
         ]
     )
-    await message.answer("Ваш заказ оформлен. Хотите оформить повторный заказ?", reply_markup=keyboard)
+    await message.answer(
+        "Ваш заказ оформлен. Хотите оформить повторный заказ?", reply_markup=keyboard
+    )
     await state.clear()
 
 
@@ -475,7 +512,35 @@ async def repeat_order(callback_query: types.CallbackQuery, state: FSMContext):
     await state.set_data({})  # Это сбросит все данные состояния
 
     # Логика для начала нового заказа
-    await callback_query.message.answer("Вы можете выбрать новый букет и оформить заказ снова.")
+    await callback_query.message.answer(
+        "Вы можете выбрать новый букет и оформить заказ снова."
+    )
 
     # Отправляем информацию для повторного выбора
-    await callback_query.message.answer("Выберите букет:", reply_markup=keyboards.get_occasion_keyboard())
+    await callback_query.message.answer(
+        "Выберите букет:", reply_markup=keyboards.get_occasion_keyboard()
+    )
+
+
+@router.message(CustomOccasionState.waiting_for_contact_info)
+async def process_contact_info(message: types.Message, state: FSMContext):
+    """Обрабатывает введенные пользователем данные и отправляет их флористам"""
+    user_data = message.text.split()
+    user_name, phone_number = user_data
+
+    # Вызываем функцию отправки уведомлений
+    await send_consultation(user_name, phone_number)
+
+    await message.answer(
+        "Спасибо! Наш администратор свяжется с вами в течение 20 минут. 😊"
+    )
+    await state.clear()  # Сбрасываем состояние
+
+
+async def send_consultation(user, phone):
+    """Отправка уведомлений курьеру и менеджеру"""
+    florist_chat_id = os.getenv("FLORIST_CHAT_ID")
+    text = f"📦 Новый заказ!\n" f"👤 Клиент: {user}\n" f"📱 Телефон: {phone}"
+
+    # Отправляем уведомления
+    await bot.send_message(chat_id=florist_chat_id, text=text)
