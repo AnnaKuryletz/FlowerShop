@@ -2,6 +2,13 @@ import os
 from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 from telegram_bot.bot_tools import handlers
+import django
+from shop.models import Order
+
+orders = Order.objects.all()
+print(orders)
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "flowershop.settings")
+django.setup()
 # Загружаем переменные окружения
 load_dotenv()
 
