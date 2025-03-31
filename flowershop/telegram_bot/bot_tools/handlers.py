@@ -83,6 +83,7 @@ async def request_consultation(callback: types.CallbackQuery, state: FSMContext)
 
     await callback.answer()
 
+
 @router.message(CustomOccasionState.waiting_for_contact_info)
 async def process_contact_info(message: types.Message, state: FSMContext):
     """Сохранение информации о запросе на консультацию"""
@@ -90,27 +91,33 @@ async def process_contact_info(message: types.Message, state: FSMContext):
 
     # Проверяем, что введено два значения
     if len(user_data) < 2:
-        await message.answer("⚠ Пожалуйста, введите ваше имя и номер телефона через пробел. Пример: Иван +79991234567")
+        await message.answer(
+            "⚠ Пожалуйста, введите ваше имя и номер телефона через пробел. Пример: Иван +79991234567"
+        )
         return
 
     user_name = " ".join(user_data[:-1])  # Имя (может состоять из нескольких слов)
     phone_number = user_data[-1]  # Последний элемент — это телефон
 
     # Проверяем, что телефон состоит из цифр и знака "+"
-    if not phone_number.startswith("+") or not phone_number[1:].isdigit() or len(phone_number) < 10:
-        await message.answer("⚠ Некорректный номер телефона. Введите в формате +79991234567")
+    if (
+        not phone_number.startswith("+")
+        or not phone_number[1:].isdigit()
+        or len(phone_number) < 10
+    ):
+        await message.answer(
+            "⚠ Некорректный номер телефона. Введите в формате +79991234567"
+        )
         return
 
-    await message.answer("Спасибо! Наш администратор свяжется с вами в течение 20 минут. 😊")
+    await message.answer(
+        "Спасибо! Наш администратор свяжется с вами в течение 20 минут. 😊"
+    )
     user_name = user_data[0]
     user_phone = user_data[1]
 
     florist_chat_id = os.getenv("FLORIST_CHAT_ID")
-    text = (
-        f"📦 Новый заказ!\n"
-        f"👤 Клиент: {user_name}\n"
-        f"📱 Телефон: {user_phone}"
-    )
+    text = f"📦 Новый заказ!\n" f"👤 Клиент: {user_name}\n" f"📱 Телефон: {user_phone}"
 
     # Отправляем уведомления
     await bot.send_message(chat_id=florist_chat_id, text=text)
@@ -267,9 +274,14 @@ async def show_all_bouquets(callback: types.CallbackQuery, state: FSMContext):
     user_occasion = user_data.get("occasion")
 
     # Фильтрация букетов по выбранному поводу
-    if user_occasion:
+    if user_occasion in ["birthday", "wedding", "school", "no_reason"]:
         bouquets = await sync_to_async(list)(
             Bouquet.objects.filter(occasion=user_occasion)
+        )
+    elif user_occasion:
+        # Если пользователь ввел свой повод, исключаем школьные и свадебные букеты
+        bouquets = await sync_to_async(list)(
+            Bouquet.objects.exclude(occasion__in=["wedding", "school"])
         )
     else:
         bouquets = await sync_to_async(list)(Bouquet.objects.all())
