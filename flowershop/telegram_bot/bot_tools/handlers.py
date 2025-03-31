@@ -80,23 +80,40 @@ async def request_consultation(callback: types.CallbackQuery, state: FSMContext)
     await state.set_state(
         CustomOccasionState.waiting_for_contact_info
     )  # Изменено состояние ожидания
-    await callback.answer()
 
+    await callback.answer()
 
 @router.message(CustomOccasionState.waiting_for_contact_info)
 async def process_contact_info(message: types.Message, state: FSMContext):
     """Сохранение информации о запросе на консультацию"""
-    contact_info = message.text.split()
+    user_data = message.text.strip().split()
 
-    if len(contact_info) < 2:
-        await message.answer(
-            "Пожалуйста, укажите ваше имя и номер телефона в формате: Имя Номер."
-        )
+    # Проверяем, что введено два значения
+    if len(user_data) < 2:
+        await message.answer("⚠ Пожалуйста, введите ваше имя и номер телефона через пробел. Пример: Иван +79991234567")
         return
 
-    user_name = contact_info[0]
-    user_phone = contact_info[1]
+    user_name = " ".join(user_data[:-1])  # Имя (может состоять из нескольких слов)
+    phone_number = user_data[-1]  # Последний элемент — это телефон
 
+    # Проверяем, что телефон состоит из цифр и знака "+"
+    if not phone_number.startswith("+") or not phone_number[1:].isdigit() or len(phone_number) < 10:
+        await message.answer("⚠ Некорректный номер телефона. Введите в формате +79991234567")
+        return
+
+    await message.answer("Спасибо! Наш администратор свяжется с вами в течение 20 минут. 😊")
+    user_name = user_data[0]
+    user_phone = user_data[1]
+
+    florist_chat_id = os.getenv("FLORIST_CHAT_ID")
+    text = (
+        f"📦 Новый заказ!\n"
+        f"👤 Клиент: {user_name}\n"
+        f"📱 Телефон: {user_phone}"
+    )
+
+    # Отправляем уведомления
+    await bot.send_message(chat_id=florist_chat_id, text=text)
     # Создаем запись в модели Consultation
     consultation = await sync_to_async(Consultation.objects.create)(
         customer_name=user_name,  # Сохраняем имя клиента
@@ -537,39 +554,10 @@ async def process_contact_info(message: types.Message, state: FSMContext):
     await state.clear()  # Сбрасываем состояние
 
 
-router.message(CustomOccasionState.waiting_for_contact_info)
-async def process_contact_info(message: types.Message, state: FSMContext):
-    """Обрабатывает введенные пользователем данные и отправляет их флористам"""
-    user_data = message.text.strip().split()
-
-    # Проверяем, что введено два значения
-    if len(user_data) < 2:
-        await message.answer("⚠️ Пожалуйста, введите ваше имя и номер телефона через пробел. Пример: Иван +79991234567")
-        return
-
-    user_name = " ".join(user_data[:-1])  # Имя (может состоять из нескольких слов)
-    phone_number = user_data[-1]  # Последний элемент — это телефон
-
-    # Проверяем, что телефон состоит из цифр и знака "+"
-    if not phone_number.startswith("+") or not phone_number[1:].isdigit() or len(phone_number) < 10:
-        await message.answer("⚠️ Некорректный номер телефона. Введите в формате +79991234567")
-        return
-
-    # Вызываем функцию отправки уведомлений
-    await send_consultation(user_name, phone_number)
-
-    await message.answer("Спасибо! Наш администратор свяжется с вами в течение 20 минут. 😊")
-    await state.clear()  # Сбрасываем состояние
-
-
 async def send_consultation(user, phone):
     """Отправка уведомлений курьеру и менеджеру"""
     florist_chat_id = os.getenv("FLORIST_CHAT_ID")
-    text = (
-            f"📦 Новый заказ!\n"
-            f"👤 Клиент: {user}\n"
-            f"📱 Телефон: {phone}"
-        )
+    text = f"📦 Новый заказ!\n" f"👤 Клиент: {user}\n" f"📱 Телефон: {phone}"
 
-        # Отправляем уведомления
+    # Отправляем уведомления
     await bot.send_message(chat_id=florist_chat_id, text=text)
