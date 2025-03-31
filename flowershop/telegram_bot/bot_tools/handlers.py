@@ -106,14 +106,6 @@ async def process_contact_info(message: types.Message, state: FSMContext):
     await message.answer(
         f"📝 Ваш запрос на консультацию успешно отправлен!\nИмя: {consultation.customer_name}\nТелефон: {consultation.phone}"
     )
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Оформить повторный заказ", callback_data="repeat_order")]
-        ]
-    )
-
-    await message.answer("Хотите оформить повторный заказ?", reply_markup=keyboard)
-
     await state.clear()
 
 
